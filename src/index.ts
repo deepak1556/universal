@@ -70,6 +70,9 @@ export type MakeUniversalOpts = {
    * Use this if your application contains another bundle that's already signed.
    */
   infoPlistsToIgnore?: string;
+
+  asarPath?: string;
+  filesToSkipComparison?: (file: string) => boolean;
 };
 
 const dupedFiles = (files: AppFile[]) =>
@@ -99,8 +102,8 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
     }
   }
 
-  const x64AsarMode = await detectAsarMode(opts.x64AppPath);
-  const arm64AsarMode = await detectAsarMode(opts.arm64AppPath);
+  const x64AsarMode = await detectAsarMode(opts.x64AppPath, opts.asarPath);
+  const arm64AsarMode = await detectAsarMode(opts.arm64AppPath, opts.asarPath);
   d('detected x64AsarMode =', x64AsarMode);
   d('detected arm64AsarMode =', arm64AsarMode);
 
@@ -150,6 +153,14 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
         if (path.basename(path.dirname(file.relativePath)) === 'MainMenu.nib') {
           // The mismatch here is OK so we just move on to the next one
           continue;
+        }
+        if (opts.filesToSkipComparison) {
+          if (
+            typeof opts.filesToSkipComparison === 'function' &&
+            opts.filesToSkipComparison(file.relativePath)
+          ) {
+            continue;
+          }
         }
         throw new Error(
           `Expected all non-binary files to have identical SHAs when creating a universal build but "${file.relativePath}" did not`,
@@ -264,20 +275,31 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
     // FIXME: Codify the assumption that app.asar.unpacked only contains native modules
     if (x64AsarMode === AsarMode.HAS_ASAR && opts.mergeASARs) {
       d('merging x64 and arm64 asars');
-      const output = path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar');
+      const output = opts.asarPath
+        ? path.resolve(tmpApp, opts.asarPath)
+        : path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar');
       await mergeASARs({
-        x64AsarPath: path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar'),
-        arm64AsarPath: path.resolve(opts.arm64AppPath, 'Contents', 'Resources', 'app.asar'),
+        x64AsarPath: output,
+        arm64AsarPath: opts.asarPath
+          ? path.resolve(opts.arm64AppPath, opts.asarPath)
+          : path.resolve(opts.arm64AppPath, 'Contents', 'Resources', 'app.asar'),
         outputAsarPath: output,
         singleArchFiles: opts.singleArchFiles,
+        filesToSkipComparison: opts.filesToSkipComparison,
       });
 
-      generatedIntegrity['Resources/app.asar'] = generateAsarIntegrity(output);
+      generatedIntegrity[opts.asarPath ?? 'Resources/app.asar'] = generateAsarIntegrity(output);
     } else if (x64AsarMode === AsarMode.HAS_ASAR) {
       d('checking if the x64 and arm64 asars are identical');
-      const x64AsarSha = await sha(path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar'));
+      const x64AsarSha = await sha(
+        opts.asarPath
+          ? path.resolve(tmpApp, opts.asarPath)
+          : path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar'),
+      );
       const arm64AsarSha = await sha(
-        path.resolve(opts.arm64AppPath, 'Contents', 'Resources', 'app.asar'),
+        opts.asarPath
+          ? path.resolve(opts.arm64AppPath, opts.asarPath)
+          : path.resolve(opts.arm64AppPath, 'Contents', 'Resources', 'app.asar'),
       );
 
       if (x64AsarSha !== arm64AsarSha) {

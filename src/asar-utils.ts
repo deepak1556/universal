@@ -18,8 +18,8 @@ export type MergeASARsOptions = {
   x64AsarPath: string;
   arm64AsarPath: string;
   outputAsarPath: string;
-
   singleArchFiles?: string;
+  filesToSkipComparison?: (file: string) => boolean;
 };
 
 // See: https://github.com/apple-opensource-mirror/llvmCore/blob/0c60489d96c87140db9a6a14c6e82b15f5e5d252/include/llvm/Object/MachOFormat.h#L108-L112
@@ -36,11 +36,13 @@ const MACHO_UNIVERSAL_MAGIC = new Set([
   0xcafebabe, 0xbebafeca,
 ]);
 
-export const detectAsarMode = async (appPath: string) => {
+export const detectAsarMode = async (appPath: string, asarPath?: string) => {
   d('checking asar mode of', appPath);
-  const asarPath = path.resolve(appPath, 'Contents', 'Resources', 'app.asar');
+  const result = asarPath
+    ? path.resolve(appPath, asarPath)
+    : path.resolve(appPath, 'Contents', 'Resources', 'app.asar');
 
-  if (!(await fs.pathExists(asarPath))) {
+  if (!(await fs.pathExists(result))) {
     d('determined no asar');
     return AsarMode.NO_ASAR;
   }
@@ -81,6 +83,7 @@ export const mergeASARs = async ({
   arm64AsarPath,
   outputAsarPath,
   singleArchFiles,
+  filesToSkipComparison,
 }: MergeASARsOptions): Promise<void> => {
   d(`merging ${x64AsarPath} and ${arm64AsarPath}`);
 
@@ -104,6 +107,7 @@ export const mergeASARs = async ({
       if ('files' in stat) {
         continue;
       }
+
       unpackedFiles.add(file);
     }
   }
@@ -155,6 +159,13 @@ export const mergeASARs = async ({
       MACHO_UNIVERSAL_MAGIC.has(arm64Content.readUInt32LE(0))
     ) {
       continue;
+    }
+
+    if (filesToSkipComparison) {
+      if (typeof filesToSkipComparison === 'function' &&
+          filesToSkipComparison(file)) {
+        continue;
+      }
     }
 
     if (!MACHO_MAGIC.has(x64Content.readUInt32LE(0))) {
