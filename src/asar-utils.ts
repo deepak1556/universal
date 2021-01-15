@@ -7,11 +7,11 @@ export enum AsarMode {
   HAS_ASAR,
 }
 
-export const detectAsarMode = async (appPath: string) => {
+export const detectAsarMode = async (appPath: string, asarPath?: string) => {
   d('checking asar mode of', appPath);
-  const asarPath = path.resolve(appPath, 'Contents', 'Resources', 'app.asar');
+  const result = asarPath ?? path.resolve(appPath, 'Contents', 'Resources', 'app.asar');
 
-  if (!(await fs.pathExists(asarPath))) {
+  if (!(await fs.pathExists(result))) {
     d('determined no asar');
     return AsarMode.NO_ASAR;
   }

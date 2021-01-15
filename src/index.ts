@@ -18,6 +18,10 @@ type MakeUniversalOpts = {
    * Absolute file system path to the arm64 version of your application.  E.g. /Foo/bar/MyApp_arm64.app
    */
   arm64AppPath: string;
+
+  x64AsarPath?: string;
+  arm64AsarPath?: string;
+  filesToSkip?: Array<string>;
   /**
    * Absolute file system path you want the universal app to be written to.  E.g. /Foo/var/MyApp_universal.app
    *
@@ -57,8 +61,8 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
     }
   }
 
-  const x64AsarMode = await detectAsarMode(opts.x64AppPath);
-  const arm64AsarMode = await detectAsarMode(opts.arm64AppPath);
+  const x64AsarMode = await detectAsarMode(opts.x64AppPath, opts.x64AsarPath);
+  const arm64AsarMode = await detectAsarMode(opts.arm64AppPath, opts.arm64AsarPath);
   d('detected x64AsarMode =', x64AsarMode);
   d('detected arm64AsarMode =', arm64AsarMode);
 
@@ -77,8 +81,8 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
 
     const uniqueToX64: string[] = [];
     const uniqueToArm64: string[] = [];
-    const x64Files = await getAllAppFiles(await fs.realpath(tmpApp));
-    const arm64Files = await getAllAppFiles(await fs.realpath(opts.arm64AppPath));
+    const x64Files = await getAllAppFiles(await fs.realpath(tmpApp), opts.filesToSkip);
+    const arm64Files = await getAllAppFiles(await fs.realpath(opts.arm64AppPath), opts.filesToSkip);
 
     for (const file of dupedFiles(x64Files)) {
       if (!arm64Files.some((f) => f.relativePath === file.relativePath))
@@ -182,14 +186,16 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
     // FIXME: Codify the assumption that app.asar.unpacked only contains native modules
     if (x64AsarMode === AsarMode.HAS_ASAR) {
       d('checking if the x64 and arm64 asars are identical');
-      const x64AsarSha = await sha(path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar'));
+      const x64AsarSha = await sha(
+        opts.x64AsarPath ?? path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar'),
+      );
       const arm64AsarSha = await sha(
-        path.resolve(opts.arm64AppPath, 'Contents', 'Resources', 'app.asar'),
+        opts.arm64AsarPath ?? path.resolve(opts.arm64AppPath, 'Contents', 'Resources', 'app.asar'),
       );
 
       if (x64AsarSha !== arm64AsarSha) {
         d('x64 and arm64 asars are different');
-        await fs.move(
+        /*await fs.move(
           path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar'),
           path.resolve(tmpApp, 'Contents', 'Resources', 'app-x64.asar'),
         );
@@ -237,7 +243,7 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
         await asar.createPackage(
           entryAsar,
           path.resolve(tmpApp, 'Contents', 'Resources', 'app.asar'),
-        );
+        );*/
       } else {
         d('x64 and arm64 asars are the same');
       }

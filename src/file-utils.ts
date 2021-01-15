@@ -20,12 +20,16 @@ export type AppFile = {
  *
  * @param appPath Path to the application
  */
-export const getAllAppFiles = async (appPath: string): Promise<AppFile[]> => {
+export const getAllAppFiles = async (
+  appPath: string,
+  filesToSkip?: Array<string>,
+): Promise<AppFile[]> => {
   const files: AppFile[] = [];
 
   const visited = new Set<string>();
   const traverse = async (p: string) => {
     p = await fs.realpath(p);
+    if (filesToSkip?.find((e) => p.includes(e))) return;
     if (visited.has(p)) return;
     visited.add(p);
 
@@ -44,7 +48,7 @@ export const getAllAppFiles = async (appPath: string): Promise<AppFile[]> => {
           throw e;
         }
       }
-      if (p.includes('app.asar')) {
+      if (p.includes('.asar')) {
         fileType = AppFileType.APP_CODE;
       } else if (fileOutput.startsWith(MACHO_PREFIX)) {
         fileType = AppFileType.MACHO;
