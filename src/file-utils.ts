@@ -48,12 +48,12 @@ export const getAllAppFiles = async (
           throw e;
         }
       }
-      if (p.includes('.asar')) {
-        fileType = AppFileType.APP_CODE;
-      } else if (fileOutput.startsWith(MACHO_PREFIX)) {
+      if (fileOutput.startsWith(MACHO_PREFIX)) {
         fileType = AppFileType.MACHO;
       } else if (p.endsWith('.bin')) {
         fileType = AppFileType.SNAPSHOT;
+      } else if (p.includes('.asar')) {
+        fileType = AppFileType.APP_CODE;
       }
 
       files.push({
