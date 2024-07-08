@@ -1,6 +1,6 @@
 {
   "name": "vscode-universal-bundler",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Utility for creating Universal macOS applications from two x64 and arm64 Electron applications",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
