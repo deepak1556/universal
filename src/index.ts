@@ -8,7 +8,13 @@ import * as plist from 'plist';
 import * as dircompare from 'dir-compare';
 
 import { AppFile, AppFileType, getAllAppFiles } from './file-utils';
-import { AsarMode, detectAsarMode, generateAsarIntegrity, mergeASARs } from './asar-utils';
+import {
+  AsarMode,
+  detectAsarMode,
+  generateAsarIntegrity,
+  mergeASARs,
+  isUniversalMacho,
+} from './asar-utils';
 import { sha } from './sha';
 import { d } from './debug';
 
@@ -190,6 +196,11 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
           machOFile.relativePath,
           `matches across builds ${x64Sha}===${arm64Sha}, skipping lipo`,
         );
+        continue;
+      }
+
+      if ((await isUniversalMacho(first)) && (await isUniversalMacho(second))) {
+        d('Skipping universal Mach-O file', machOFile.relativePath);
         continue;
       }
 

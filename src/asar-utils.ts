@@ -2,6 +2,7 @@ import asar from '@electron/asar';
 import { execFileSync } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs-extra';
+import { open } from 'fs/promises';
 import path from 'path';
 import { minimatch } from 'minimatch';
 import os from 'os';
@@ -76,6 +77,18 @@ function checkSingleArch(archive: string, file: string, allowList?: string): voi
         `allowList rule: "${allowList}"`,
     );
   }
+}
+
+export async function isUniversalMacho(file: string): Promise<boolean> {
+  let filehandle, buf;
+  try {
+    filehandle = await open(file);
+    buf = Buffer.alloc(16);
+    await filehandle.read(buf, 0, 16, 0);
+  } finally {
+    await filehandle?.close();
+  }
+  return MACHO_UNIVERSAL_MAGIC.has(buf.readUInt32LE(0));
 }
 
 export const mergeASARs = async ({
@@ -162,8 +175,7 @@ export const mergeASARs = async ({
     }
 
     if (filesToSkipComparison) {
-      if (typeof filesToSkipComparison === 'function' &&
-          filesToSkipComparison(file)) {
+      if (typeof filesToSkipComparison === 'function' && filesToSkipComparison(file)) {
         continue;
       }
     }
