@@ -201,6 +201,7 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
 
       if ((await isUniversalMacho(first)) && (await isUniversalMacho(second))) {
         d('Skipping universal Mach-O file', machOFile.relativePath);
+        knownMergedMachOFiles.add(machOFile.relativePath);
         continue;
       }
 
