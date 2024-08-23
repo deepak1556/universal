@@ -386,7 +386,27 @@ export const makeUniversalApp = async (opts: MakeUniversalOpts): Promise<void> =
       const { ElectronAsarIntegrity: arm64Integrity, ...arm64Plist } = plist.parse(
         await fs.readFile(arm64PlistPath, 'utf8'),
       ) as any;
-      if (JSON.stringify(x64Plist) !== JSON.stringify(arm64Plist)) {
+      const buildKeys = ['DTSDKBuild', 'DTSDKName', 'DTXcode', 'DTXcodeBuild'];
+      const filteredX64Plist = Object.keys(x64Plist)
+        .filter((key) => !buildKeys.includes(key))
+        .reduce(
+          (obj, key) => {
+            obj[key] = x64Plist[key];
+            return obj;
+          },
+          {} as { [key: string]: any },
+        );
+      const filteredArm64Plist = Object.keys(arm64Plist)
+        .filter((key) => !buildKeys.includes(key))
+        .reduce(
+          (obj, key) => {
+            obj[key] = arm64Plist[key];
+            return obj;
+          },
+          {} as { [key: string]: any },
+        );
+
+      if (JSON.stringify(filteredX64Plist) !== JSON.stringify(filteredArm64Plist)) {
         throw new Error(
           `Expected all Info.plist files to be identical when ignoring integrity when creating a universal build but "${plistFile.relativePath}" was not`,
         );
